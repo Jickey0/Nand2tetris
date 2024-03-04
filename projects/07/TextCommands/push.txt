@@ -1,0 +1,13 @@
+
+// PUSH LOCATION i
+@i
+D=A
+@LOCATION
+D=D+M
+A=D // move to the addr
+D=M // save that value to D
+@SP
+A=M
+M=D
+@SP
+M=M+1

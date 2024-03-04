@@ -1,0 +1,79 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+/**
+ * The Hack Central Processing unit (CPU).
+ * Parses the binary code in the instruction input and executes it according to the
+ * Hack machine language specification. In the case of a C-instruction, computes the
+ * function specified by the instruction. If the instruction specifies to read a memory
+ * value, the inM input is expected to contain this value. If the instruction specifies
+ * to write a value to the memory, sets the outM output to this value, sets the addressM
+ * output to the target address, and asserts the writeM output (when writeM == 0, any
+ * value may appear in outM).
+ * If the reset input is 0, computes the address of the next instruction and sets the
+ * pc output to that value. If the reset input is 1, sets pc to 0.
+ * Note: The outM and writeM outputs are combinational: they are affected by the
+ * instruction's execution during the current cycle. The addressM and pc outputs are
+ * clocked: although they are affected by the instruction's execution, they commit to
+ * their new values only in the next cycle.
+ */
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to restart the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // Address of next instruction
+
+    PARTS:
+    And(a=instruction[5], b=instruction[5], out=instr5); // test
+    And(a=instruction[0], b=instruction[0], out=instr0); // test
+
+
+    Not(in=instruction[15], out=notInstr15); // 1 for if we want to write an address
+
+    Or(a=notInstr15 ,b=instruction[5] ,out=ARegLoad);
+
+    Mux16(a[15]=false, a[0..14]=instruction[0..14], b=ALUOut1, sel=instruction[15], out=muxOne); // choose a A or C instruction
+
+    ARegister(in=muxOne ,load=ARegLoad ,out=ARegister1, out=ARegister2, out[0..14]=addressM); // decide if we want to save the data to memory
+
+    Mux16(a=ARegister1, b=inM, sel=instruction[12], out=muxTwo); // send either A or M to the ALU
+
+    ALU(x=DRegister1 ,y=muxTwo ,zx=instruction[11] ,nx=instruction[10] ,zy=instruction[9] ,ny=instruction[8] ,f=instruction[7] ,no=instruction[6] ,out=ALUOut1, out=outM ,zr=zrout ,ng=ngout);
+
+    And(a=instruction[4] ,b=instruction[15] ,out=DRegLoad); // ensure were doing a C-instruction when saving data to the D register
+
+    DRegister(in=ALUOut1, load=DRegLoad, out=DRegister1);
+
+    And(a=instruction[3], b=instruction[3], out=WriteM1); // connect instruction#12 to writeM but make sure its a C instruction
+
+    And(a=WriteM1, b=instruction[15], out=writeM);
+
+    Not(in=ngout, out=notngout);
+    Not(in=zrout, out=notzr);
+
+    // all And comparisons for PC
+    And(a=instruction[1], b=zrout, out=load1);
+    And(a=instruction[2], b=ngout, out=load2);
+    And(a=instruction[0], b=notzr, out=threewayload);
+    And(a=threewayload, b=notngout, out=load3);
+    And(a=instruction[0], b=instruction[1], out=unconditionalJMP);
+    And(a=unconditionalJMP, b=instruction[2], out=load4);
+
+
+    // check to see if any and comparison contained a one
+    Or(a=load1, b=load2, out=load5);
+    Or(a=load3, b=load4, out=load6);
+    Or(a=load5, b=load6, out=load7);
+
+    And(a=instruction[15], b= load7, out= load8); // make sure were doing a c-instruction
+
+    PC(in=ARegister2 ,load= load8 ,inc=true ,reset=reset ,out[0..14]=pc);
+}

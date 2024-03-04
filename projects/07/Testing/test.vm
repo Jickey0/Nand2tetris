@@ -1,0 +1,12 @@
+// File name
+
+push constant 10
+push constant 20
+push constant 203
+pop temp 6
+pop local 0
+push local 0
+push that 5
+add
+push argument 1
+sub

@@ -1,0 +1,4 @@
+
+// GOTO 
+@LABEL
+0;JMP

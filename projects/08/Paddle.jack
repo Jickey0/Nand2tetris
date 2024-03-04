@@ -1,0 +1,20 @@
+class Paddle {
+    field int x;
+    field int y; // screen location of the square's top-left corner
+    field int size; // length of this square, in pixels
+
+    /** Draws the square on the screen. */
+    method void draw() {
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        return;
+    }
+
+    constructor Paddle new(int ax, int ay, int asize) {
+        let x = ax;
+        let y = ay;
+        let size = asize;
+        do draw();
+        return this;
+   }
+}

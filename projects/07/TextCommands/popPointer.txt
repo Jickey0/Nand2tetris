@@ -1,0 +1,7 @@
+
+// pop po1nter i
+@SP
+AM=M-1
+D=M
+@i
+M=D

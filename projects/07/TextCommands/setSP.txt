@@ -1,0 +1,6 @@
+ 
+// starts the SP at 256
+@256
+D=A
+@SP
+M=D

@@ -1,0 +1,23 @@
+
+// function
+(FUNCTION)
+
+@i // saves input loop #
+D=A
+
+(ZEROLOOP) // create zeros if needed
+@ENDZEROLOOP
+D;JEQ
+D=D-1
+
+// push const 0
+@SP
+A=M
+M=0
+@SP
+M=M+1
+
+@ZEROLOOP
+0;JMP
+
+(ENDZEROLOOP)

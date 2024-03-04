@@ -1,0 +1,69 @@
+
+// call functionName nArgs
+// push retAddrLabel // Generates and pushes this label // subtracts the # of args
+@retAddrLabel
+D=A
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+// push LCL // Saves the caller’s LCL
+@LCL
+D=M
+@SP
+M=M+1 // move sp up
+A=M
+A=A-1 // move down sp to save the val
+M=D
+
+// push ARG // Saves the caller’s ARG
+@ARG
+D=M
+@SP
+M=M+1 // move sp up
+A=M
+A=A-1 // move down sp to save the val
+M=D
+
+// push THIS // Saves the caller’s THIS
+@THIS
+D=M
+@SP
+M=M+1 // move sp up
+A=M
+A=A-1 // move down sp to save the val
+M=D
+
+// push THAT // Saves the caller’s THAT
+@THAT
+D=M
+@SP
+M=M+1 // move sp up
+A=M
+A=A-1 // move down sp to save the val
+M=D
+
+// ARG = SP – 5 – nArgs // Repositions ARG
+@5
+D=A
+@NARGS
+D=D+A
+@SP
+D=M-D
+@ARG
+M=D
+
+// LCL = SP // Repositions LCL
+@SP
+D=M
+@LCL
+M=D
+
+// goto functionName // Transfers control to the callee
+@FUNCTION
+0;JMP
+
+// (retAddrLabel) // Injects this label into the code // still confused but oh well
+(retAddrLabel)

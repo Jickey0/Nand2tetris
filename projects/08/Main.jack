@@ -1,0 +1,8 @@
+class Main {
+/** Initializes a new game and starts it. */
+    function void main() {
+        var Pong game;
+        let game = Pong.new();
+        return;
+    }
+}

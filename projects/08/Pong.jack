@@ -1,0 +1,22 @@
+class Pong {
+    field Pong pong; 
+    field int direction; 
+
+    /** Constructs a new Square Game. */
+    constructor Pong new() {
+        let pong = Paddle.new(0, 0, 30);
+        let direction = 0;
+        return this;
+    }
+
+    method void run(){
+        var boolean exit;
+        var char key;
+        let exit = false;
+        while (~exit){
+            let key = Keyboard.keyPressed();
+            if (~(key = 0)) { let exit = true; }
+        }
+        return;
+    }
+}
