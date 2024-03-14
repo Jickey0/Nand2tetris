@@ -35,11 +35,13 @@ def removeComments(file):
         
     return(''.join(e))
 
+
 keywords = ["class", "constructor", 'function', 'method', 'field', 'static', 'var', 'int', 'char', 'boolean', 'void', 'true', 'false', 'null', 'this', 'let', 'do', 'if', 'else', 'while', 'return']
 
 symbol = ['{', '}', '(', ')', '[', ']', '.', ',', ';', '+', '-', '*', '/', '&', '|', '<', '>', '=', '~']
         
 specialChars = {'<': '&lt;', '>': '&gt;', '"': '&quot;', '&': '&amp;'}
+
 
 def adv2(text):
     token = ''
@@ -78,6 +80,7 @@ def adv2(text):
             
     return token_dict
 
+
 def remove_empty_strings(lst):
     return [item for item in lst if item != '']
 
@@ -110,13 +113,481 @@ def replaceSpecialChars(str):
         result = result + char
     
     return result
-
-def compileClass(myTokens):
-    token = myTokens.pop(0)
     
-    return
+# IMPORTANT --> How most tokens are saved
+def writeToken(token, type, result):
+    if type == 'stringConstant':
+        token = token[1:(len(token) - 1)]
+    
+    token = replaceSpecialChars(token)
+    result.append(('<' + type + '> ' + token + ' </' + type + '>'))
+    return result
 
-def main(file_path, save_path):
+# TODO: add protective measures
+def compileClass(myTokens, result):
+    result.append('<class>')
+    
+    # class
+    result = writeToken(myTokens.pop(0), 'keyword', result)
+    
+    # the immediate next token must be the classes name
+    result = writeToken(myTokens.pop(0), 'identifier', result)
+    
+    # add the { symbol
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    # optional classVarDec
+    result = compileClassVarDec(myTokens, result)
+    
+    # optional subroutineDec
+    result = compileSubroutine(myTokens, result)
+    
+    # add the } symbol
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result.append('</class>')
+    
+    return result
+
+def compileClassVarDec(myTokens, result):
+    if myTokens[0] == 'static' or myTokens[0] == 'field':
+        result.append('<classVarDec>')
+        
+        result = writeToken(myTokens.pop(0), 'keyword', result)
+        
+        # could be keyword or identifer
+        type = tokenType(myTokens[0])
+        result = writeToken(myTokens.pop(0), type, result)
+        
+        # identifier
+        result = writeToken(myTokens.pop(0), 'identifier', result)
+        
+        # while we don't encounter a ; must be a identifier
+        while myTokens[0] != ';':
+            result = writeToken(myTokens.pop(0), 'identifier', result)
+            
+        # end ;
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        result.append('</classVarDec>')
+        
+    return result
+            
+def compileSubroutine(myTokens, result):
+    while myTokens[0] == 'constructor' or myTokens[0] == 'function' or myTokens[0] == 'method':
+        result.append('<subroutineDec>')
+        
+        result = writeToken(myTokens.pop(0), 'keyword', result)
+        
+        # could be keyword or identifer
+        type = tokenType(myTokens[0])
+        result = writeToken(myTokens.pop(0), type, result)
+        
+        # subroutineName
+        result = writeToken(myTokens.pop(0), 'identifier', result)
+        
+        # (
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        result = parameterList(myTokens, result)
+        
+        # )
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        result = subroutineBody(myTokens, result)
+        
+        result.append('</subroutineDec>')
+
+    return result
+    
+def subroutineBody(myTokens, result):
+    result.append('<subroutineBody>')
+    
+    # {
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    while myTokens[0] == 'var':
+        result = varDec(myTokens, result)
+        
+    result = statements(myTokens, result)
+    
+    # }
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    
+    result.append('</subroutineBody>')
+    return result
+    
+def statements(myTokens, result):
+    result.append('<statements>')
+    
+    while myTokens[0] == 'let' or myTokens[0] == 'if' or myTokens[0] == 'while' or myTokens[0] == 'do' or myTokens[0] == 'return':
+        token = myTokens[0]
+        #print('hello')
+        #print(myTokens[0])
+        #print(result)
+        #result = writeToken(myTokens.pop(0), 'keyword', result)
+        
+        if token == 'let':
+            result = letStatement(myTokens, result)
+        if token == 'if':
+            result = ifStatement(myTokens, result)
+        if token == 'while':
+            result = whileStatement(myTokens, result)
+        if token == 'do':
+            result = doStatement(myTokens, result)
+        if token == 'return':
+            result = returnStatement(myTokens, result)
+    
+    
+    result.append('</statements>')
+    
+    return result
+
+# --- <STATEMENTS> --- #       
+def letStatement(myTokens, result):
+    result.append('<letStatement>')
+    
+    # let
+    result = writeToken(myTokens.pop(0), 'keyword', result)
+    
+    # varName
+    result = writeToken(myTokens.pop(0), 'identifier', result)
+    
+    # optional index
+    if myTokens[0] == '[':
+        # [
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        result = expression(myTokens, result)
+        
+        # ]
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    # =
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result = expression(myTokens, result)
+    
+    # ;
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result.append('</letStatement>')
+    
+    return result
+
+op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
+
+# TODO: add recursive part (DONE)
+def expression(myTokens, result):
+    result.append('<expression>')
+    
+    result = term(myTokens, result)
+    
+    while myTokens[0] in op:
+        # op
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        # term
+        result = term(myTokens, result)
+    
+    result.append('</expression>')
+    return result
+
+def term(myTokens, result):
+    result.append('<term>')
+    
+    # find type
+    type = tokenType(myTokens[0])
+    
+    if type == 'integerConstant':
+        result = writeToken(myTokens.pop(0), 'integerConstant', result)
+        
+    if type == 'stringConstant':
+        result = writeToken(myTokens.pop(0), 'stringConstant', result)
+        
+    # keywordConstant
+    if myTokens[0] == 'true' or myTokens[0] == 'false' or myTokens[0] == 'null' or myTokens[0] == 'this':
+        result = writeToken(myTokens.pop(0), 'keyword', result)
+        
+    # varName or subroutineCall
+    if type == 'identifier':
+        
+        # TODO: check this: subroutineCall
+        if myTokens[1] == '(' or myTokens[1] == '.':
+            result = subroutineCall(myTokens, result)
+        
+        # varname
+        else:
+            # varName
+            result = writeToken(myTokens.pop(0), 'identifier', result)
+            
+            # optional index
+            if myTokens[0] == '[':
+                # [
+                result = writeToken(myTokens.pop(0), 'symbol', result)
+                
+                result = expression(myTokens, result)
+                
+                # ]
+                result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    # TODO: fix this (MAYBE)
+    if type == 'symbol':
+        # '(' expression ')'
+        if myTokens[0] == '(':
+            # (
+            result = writeToken(myTokens.pop(0), 'symbol', result)
+            
+            result = expression(myTokens, result)
+            
+            # )
+            result = writeToken(myTokens.pop(0), 'symbol', result)
+            
+        # unaryOp term
+        else:
+            # unaryOp
+            result = writeToken(myTokens.pop(0), 'symbol', result)
+            
+            result = term(myTokens, result)
+            
+    result.append('</term>')
+    
+    return result
+    
+# TODO: make this
+def subroutineCall(myTokens, result):
+    # subroutineName | (className | varName)
+    result = writeToken(myTokens.pop(0), 'identifier', result)
+    
+    if myTokens[0] == '(':
+        # (
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        result = expressionList(myTokens, result)
+        
+        # )
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+    else:
+        # .
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        # subroutineName
+        result = writeToken(myTokens.pop(0), 'identifier', result)
+        
+        # (
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        
+        result = expressionList(myTokens, result)
+        
+        # )
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    return result
+    
+# TODO: optional expressions 
+def expressionList(myTokens, result):
+    result.append('<expressionList>')
+    
+    if myTokens[0] != ')':
+        result = expression(myTokens, result)
+    
+        while myTokens[0] == ',':
+            result = expression(myTokens, result)
+    
+    result.append('</expressionList>')
+    
+    return result
+
+
+# fuck this shit
+def ifStatement(myTokens, result):
+    result.append('<ifStatement>')
+    
+    # if
+    result = writeToken(myTokens.pop(0), 'keyword', result)
+    
+    # (
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result = expression(myTokens, result)
+    
+    # )
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    # {
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result = statements(myTokens, result)
+    
+    # }
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    # optional 'else'
+    if myTokens[0] == 'else':
+        # else
+        result = writeToken(myTokens.pop(0), 'keyword', result)
+        
+        # {
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+
+        result = statements(myTokens, result)
+
+        # }
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result.append('</ifStatement>')
+    
+    return result    
+
+    
+def whileStatement(myTokens, result):
+    result.append('<whileStatement>')
+    
+    # while
+    result = writeToken(myTokens.pop(0), 'keyword', result)
+    
+    # (
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result = expression(myTokens, result)
+    
+    # )
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    # {
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result = statements(myTokens, result)
+    
+    # }
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result.append('</whileStatement>')
+    
+    return result
+
+    
+def doStatement(myTokens, result):
+    result.append('<doStatement>')
+    
+    # do
+    result = writeToken(myTokens.pop(0), 'keyword', result)
+    
+    result = subroutineCall(myTokens, result)
+    
+    # ;
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result.append('</doStatement>')
+    
+    return result
+
+# TODO: make expression optional (DONE)
+def returnStatement(myTokens, result):
+    result.append('<returnStatement>')
+    
+    # return
+    result = writeToken(myTokens.pop(0), 'keyword', result)
+    
+    if myTokens[0] != ';':
+        result = expression(myTokens, result)
+    
+    # ;
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    result.append('</returnStatement>')
+    
+    return result
+# --- </STATEMENTS> --- #   
+
+
+def varDec(myTokens, result):
+    result.append('<varDec>')
+    
+    # 'var'
+    result = writeToken(myTokens.pop(0), 'keyword', result)
+    
+    # could be keyword or identifer
+    type = tokenType(myTokens[0])
+    result = writeToken(myTokens.pop(0), type, result)
+    
+    # identifier
+    result = writeToken(myTokens.pop(0), 'identifier', result)
+        
+    # while we don't encounter a ; must be a comma and a identifier
+    while myTokens[0] != ';':
+        result = writeToken(myTokens.pop(0), 'symbol', result)
+        result = writeToken(myTokens.pop(0), 'identifier', result)
+            
+    # end ;
+    result = writeToken(myTokens.pop(0), 'symbol', result)
+    
+    
+    result.append('</varDec>')
+    return result
+
+
+def parameterList(myTokens, result):
+    result.append('<parameterList>')
+    
+    # loop optional parameters
+    comma = False
+    while myTokens[0] != ')':
+        # comma seperate after first loop
+        if comma == True:
+            result.append(myTokens.pop(0), 'symbol')
+        
+        # could be keyword or identifer
+        type = tokenType(myTokens[0])
+        result.append(myTokens.pop(0), type)
+        
+        # varName
+        result.append(myTokens.pop(0), 'identifier')
+            
+        comma = True
+        
+    result.append('</parameterList>')
+    
+    return result
+
+def containsHowMany(chr, str):
+    counter = 0
+    for c in str:
+        if c == chr:
+            counter += 1
+            
+    return counter
+
+# CASES: <...> and </...>, <...>, </...>
+# SO VERY BADLY MADE FUNCTION
+def prettyPrint(input):
+    doNothing = 0
+    output = []
+    current_line = ''
+    indentCounter = 0
+    for i in range(len(input)):
+        if i != (len(input) - 1):
+            for j in range(indentCounter):
+                current_line = current_line + '  '
+        
+        current_line = current_line + input[i]
+        
+        if containsHowMany('<', input[i]) == 2:
+            # TOP 10 Worst coding practices
+            doNothing = 0
+        elif '</' in input[i]:
+            indentCounter -= 1
+        else:
+            indentCounter += 1
+        
+        output.append(current_line)
+        current_line = ''
+    
+    return output
+
+                
+def main1(file_path, save_path):
     myCode = removeComments(file_path)
 
     tokened_code = adv2(myCode)
@@ -124,9 +595,12 @@ def main(file_path, save_path):
     tokened_code = remove_empty_strings(tokened_code)
     #print(tokened_code)
 
-    f = open(save_path + 'output.xml', "w")
+    f = open(save_path + 'output1.xml', "w")
     f.write('<tokens>\r\n')
     
+    
+    
+    # print and write easy version of code (COMPLETE)
     for token in tokened_code:
         type = tokenType(token)
         
@@ -141,4 +615,27 @@ def main(file_path, save_path):
     f.write('</tokens>')
     f.close()
 
-main("Square/Main.jack", "Square/")
+
+def main2(file_path, save_path):
+    myCode = removeComments(file_path)
+
+    tokened_code = adv2(myCode)
+
+    tokened_code = remove_empty_strings(tokened_code)
+    #print(tokened_code)
+    
+    result = []
+    result = compileClass(tokened_code, result)
+    
+    #print(result)
+    result = prettyPrint(result)
+    
+    f = open(save_path + 'output2.xml', "w")
+    
+    for line in result:
+        f.write(line + '\r\n')
+    
+    f.close()
+
+main1("ArrayTest/Main.jack", "ArrayTest/")
+main2("ArrayTest/Main.jack", "ArrayTest/")
