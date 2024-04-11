@@ -307,9 +307,11 @@ def compileLet(tokens, index):
     
     # loop up in table (given 'x' aka the name variables[])
     type, name, segment, num = varType(tokens[index])
+    #printer(tokens, index, 5)
+    #print('Name: ' + name)
     
     # special logic for arrays!
-    if name == 'Array':
+    if name == 'Array' and tokens[index] == '[':
         index = moveIndexTo(tokens, index, '<term>')
         index = compileExpression(tokens, index, [], [])[0]
         
@@ -526,8 +528,8 @@ def doStackOps(nums, ops):
     while True:
         if len(nums) > 1 and len(ops) > 0:
             if ops[-1] != '(' and nums[-1] != '(' and nums[-2] != '(':
-                print(nums)
-                print(ops)
+                #print(nums)
+                #print(ops)
                 # pop the command to write it
                 writeArithmetic(ops.pop(-1))
                 
@@ -566,20 +568,28 @@ def compileTerm(tokens, index, nums, ops):
         
         # if type == subroutineCall
         if type == 'UNKNOWN' and name != 'Array':
+            print("SUBROUTINE: " + tokens[index])
             index = compileSubroutineCall(tokens, index)
         else:
             # push the symbol
             writeCommand('push', segment, str(num))
+            print('IDENT: ' + tokens[index])
+            #printer(tokens, index, 3)
             
             # logic for arrays: '(' added for logic
             if tokens[index + 3] == '[':
+                print("array: " + tokens[index])
                 nums.append('(')
                 ops.append('(')
                 
                 index = compileExpression(tokens, index + 5, nums, ops)[0]
                 
+                removeParentheses(nums)
+                removeParentheses(ops)
+                
                 # add to get the arr + expression address
                 writeArithmetic('add')
+                print('ADDING: ' + tokens[index])
                 
                 #pop pointer 1 // THAT = address of b[j]
                 writeCommand('pop', 'pointer', '1')
@@ -588,9 +598,6 @@ def compileTerm(tokens, index, nums, ops):
                 
                 # remove the val because we just added it
                 nums.pop(-1)
-                
-                removeParentheses(nums)
-                removeParentheses(ops)
                 
             index = moveIndexTo(tokens, index, '</term>')
 
