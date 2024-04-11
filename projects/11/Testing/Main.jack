@@ -1,0 +1,13 @@
+/**
+ * testing strings!
+ */
+
+class Main {
+   function void main() {
+      var int length;
+      let length = Keyboard.readInt("How many numbers? "); // constructs the array
+      do Output.printInt(length);
+      return;
+   }
+
+}
