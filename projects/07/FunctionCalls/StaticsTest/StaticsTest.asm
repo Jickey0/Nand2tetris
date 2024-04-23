@@ -1,108 +1,159 @@
-// bootstrap
+ 
+// starts the SP at 256
 @256
 D=A
 @SP
 M=D
 
-// call Sys.init 0
-@RETURNbootstrap
+// call functionName nArgs
+// push retAddrLabel1 // Generates and pushes this label // subtracts the # of args
+@retAddrLabel1
 D=A
 @SP
 A=M
-M=D // push return-address
+M=D
 @SP
 M=M+1
+
+// push LCL // Saves the caller’s LCL
 @LCL
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push LCL
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push ARG // Saves the caller’s ARG
 @ARG
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push ARG
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THIS // Saves the caller’s THIS
 @THIS
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THIS
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THAT // Saves the caller’s THAT
 @THAT
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THAT
-@SP
-M=M+1
-D=M
-@0
-D=D-A
+A=A-1 // move down sp to save the val
+M=D
+
+// ARG = SP – 5 – nArgs // Repositions ARG
 @5
-D=D-A
+D=A
+@0
+D=D+A
+@SP
+D=M-D
 @ARG
-M=D // ARG = SP-n-5
+M=D
+
+// LCL = SP // Repositions LCL
 @SP
 D=M
 @LCL
-M=D // LCL = SP
-@Sys.init
-0;JMP // goto Sys.init
-(RETURNbootstrap)
+M=D
 
-// function Class1.set 0
+// goto functionName // Transfers control to the callee
+@Sys.init
+0;JMP
+
+// (retAddrLabel1) // Injects this label into the code // still confused but oh well
+(retAddrLabel1)
+
+// funct0on
 (Class1.set)
 
-// push argument 0
+@0 // saves 0nput loop #
+D=A
+
+(ZEROLOOP3) // create zeros 0f needed
+@ENDZEROLOOP33
+D;JEQ
+D=D-1
+
+// push const 0
+@SP
+A=M
+M=0
+@SP
+M=M+1
+
+@ZEROLOOP3
+0;JMP
+
+(ENDZEROLOOP33)
+
+// PUSH ARG 0
 @0
 D=A
 @ARG
-A=M
-D=D+A
-A=D
-D=M
+D=D+M
+A=D // move to the addr
+D=M // save that value to D
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// pop static 0
+// POP static0Var0 0
+@0
+D=A
+@static0Var0
+D=D+A
+@14
+M=D // adress of value to be popped
 @SP
 M=M-1
 A=M
 D=M
-@Class1.0
+@14
+A=M
 M=D
 
-// push argument 1
+// PUSH ARG 1
 @1
 D=A
 @ARG
-A=M
-D=D+A
-A=D
-D=M
+D=D+M
+A=D // move to the addr
+D=M // save that value to D
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// pop static 1
+// POP static0Var1 1
+@1
+D=A
+@static0Var1
+D=D+A
+@14
+M=D // adress of value to be popped
 @SP
 M=M-1
 A=M
 D=M
-@Class1.1
+@14
+A=M
 M=D
 
-// push constant 0
+// PUSH CONST 0
 @0
 D=A
 @SP
@@ -111,372 +162,244 @@ M=D
 @SP
 M=M+1
 
-// return
+// endFrame and retAddr are temporary variables.
+// The pointer notation *addr denotes RAM[addr].
+// endFrame = LCL // gets the address at the frame’s end
 @LCL
 D=M
-@frame
-M=D // FRAME = LCL
+@endFrame
+M=D
+
+// retAddr = *(endFrame – 5) // gets the return address
 @5
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
-@ret
-M=D // RET = *(FRAME-5)
+@retAddr
+M=D
+
+// *ARG = pop() // puts the return value for the caller
 @SP
 M=M-1
 A=M
 D=M
 @ARG
 A=M
-M=D // *ARG = pop
+M=D
+
+// SP = ARG + 1 // repositions SP
 @ARG
 D=M+1
 @SP
-M=D // SP = ARG+1
-@frame
-D=M
+M=D
+
+// THAT = *(endFrame – 1) // restores THAT
 @1
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @THAT
-M=D // THAT = *(FRAME-1)
-@frame
-D=M
+M=D
+
+// THIS = *(endFrame – 2) // restores THIS
 @2
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @THIS
-M=D // THIS = *(FRAME-2)
-@frame
-D=M
+M=D
+
+// ARG = *(endFrame – 3) // restores ARG
 @3
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @ARG
-M=D // ARG = *(FRAME-3)
-@frame
-D=M
+M=D
+
+// LCL = *(endFrame – 4) // restores LCL
 @4
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @LCL
-M=D // LCL = *(FRAME-4)
-@ret
+M=D
+
+// GOTO return adress
+@retAddr
 A=M
 0;JMP
 
-// function Class1.get 0
+// funct0on
 (Class1.get)
 
-// push static 0
-@Class1.0
-D=M
+@0 // saves 0nput loop #
+D=A
+
+(ZEROLOOP6) // create zeros 0f needed
+@ENDZEROLOOP66
+D;JEQ
+D=D-1
+
+// push const 0
 @SP
 A=M
-M=D
+M=0
 @SP
 M=M+1
 
-// push static 1
-@Class1.1
-D=M
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// sub
-@SP
-A=M
-A=A-1
-A=A-1
-D=M
-A=A+1
-D=D-M
-@SP
-M=M-1
-M=M-1
-A=M
-M=D
-@SP
-M=M+1
-
-// return
-@LCL
-D=M
-@frame
-M=D // FRAME = LCL
-@5
-D=D-A
-A=D
-D=M
-@ret
-M=D // RET = *(FRAME-5)
-@SP
-M=M-1
-A=M
-D=M
-@ARG
-A=M
-M=D // *ARG = pop
-@ARG
-D=M+1
-@SP
-M=D // SP = ARG+1
-@frame
-D=M
-@1
-D=D-A
-A=D
-D=M
-@THAT
-M=D // THAT = *(FRAME-1)
-@frame
-D=M
-@2
-D=D-A
-A=D
-D=M
-@THIS
-M=D // THIS = *(FRAME-2)
-@frame
-D=M
-@3
-D=D-A
-A=D
-D=M
-@ARG
-M=D // ARG = *(FRAME-3)
-@frame
-D=M
-@4
-D=D-A
-A=D
-D=M
-@LCL
-M=D // LCL = *(FRAME-4)
-@ret
-A=M
+@ZEROLOOP6
 0;JMP
 
-// function Class2.set 0
-(Class2.set)
+(ENDZEROLOOP66)
 
-// push argument 0
+// PUSH static0Var0 0
 @0
 D=A
-@ARG
-A=M
+@static0Var0
 D=D+A
-A=D
-D=M
+A=D // move to the addr
+D=M // save that value to D
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// pop static 0
-@SP
-M=M-1
-A=M
-D=M
-@Class2.0
-M=D
-
-// push argument 1
+// PUSH static0Var1 1
 @1
 D=A
-@ARG
-A=M
+@static0Var1
 D=D+A
-A=D
-D=M
+A=D // move to the addr
+D=M // save that value to D
 @SP
 A=M
 M=D
 @SP
 M=M+1
 
-// pop static 1
+// SUB
 @SP
 M=M-1
 A=M
 D=M
-@Class2.1
+A=A-1
+D=M-D
 M=D
 
-// push constant 0
-@0
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// return
+// endFrame and retAddr are temporary variables.
+// The pointer notation *addr denotes RAM[addr].
+// endFrame = LCL // gets the address at the frame’s end
 @LCL
 D=M
-@frame
-M=D // FRAME = LCL
+@endFrame
+M=D
+
+// retAddr = *(endFrame – 5) // gets the return address
 @5
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
-@ret
-M=D // RET = *(FRAME-5)
+@retAddr
+M=D
+
+// *ARG = pop() // puts the return value for the caller
 @SP
 M=M-1
 A=M
 D=M
 @ARG
 A=M
-M=D // *ARG = pop
+M=D
+
+// SP = ARG + 1 // repositions SP
 @ARG
 D=M+1
 @SP
-M=D // SP = ARG+1
-@frame
-D=M
+M=D
+
+// THAT = *(endFrame – 1) // restores THAT
 @1
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @THAT
-M=D // THAT = *(FRAME-1)
-@frame
-D=M
+M=D
+
+// THIS = *(endFrame – 2) // restores THIS
 @2
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @THIS
-M=D // THIS = *(FRAME-2)
-@frame
-D=M
+M=D
+
+// ARG = *(endFrame – 3) // restores ARG
 @3
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @ARG
-M=D // ARG = *(FRAME-3)
-@frame
-D=M
+M=D
+
+// LCL = *(endFrame – 4) // restores LCL
 @4
-D=D-A
+D=A
+@endFrame
+D=M-D
 A=D
 D=M
 @LCL
-M=D // LCL = *(FRAME-4)
-@ret
+M=D
+
+// GOTO return adress
+@retAddr
 A=M
 0;JMP
 
-// function Class2.get 0
-(Class2.get)
-
-// push static 0
-@Class2.0
-D=M
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// push static 1
-@Class2.1
-D=M
-@SP
-A=M
-M=D
-@SP
-M=M+1
-
-// sub
-@SP
-A=M
-A=A-1
-A=A-1
-D=M
-A=A+1
-D=D-M
-@SP
-M=M-1
-M=M-1
-A=M
-M=D
-@SP
-M=M+1
-
-// return
-@LCL
-D=M
-@frame
-M=D // FRAME = LCL
-@5
-D=D-A
-A=D
-D=M
-@ret
-M=D // RET = *(FRAME-5)
-@SP
-M=M-1
-A=M
-D=M
-@ARG
-A=M
-M=D // *ARG = pop
-@ARG
-D=M+1
-@SP
-M=D // SP = ARG+1
-@frame
-D=M
-@1
-D=D-A
-A=D
-D=M
-@THAT
-M=D // THAT = *(FRAME-1)
-@frame
-D=M
-@2
-D=D-A
-A=D
-D=M
-@THIS
-M=D // THIS = *(FRAME-2)
-@frame
-D=M
-@3
-D=D-A
-A=D
-D=M
-@ARG
-M=D // ARG = *(FRAME-3)
-@frame
-D=M
-@4
-D=D-A
-A=D
-D=M
-@LCL
-M=D // LCL = *(FRAME-4)
-@ret
-A=M
-0;JMP
-
-// function Sys.init 0
+// funct0on
 (Sys.init)
 
-// push constant 6
+@0 // saves 0nput loop #
+D=A
+
+(ZEROLOOP10) // create zeros 0f needed
+@ENDZEROLOOP1010
+D;JEQ
+D=D-1
+
+// push const 0
+@SP
+A=M
+M=0
+@SP
+M=M+1
+
+@ZEROLOOP10
+0;JMP
+
+(ENDZEROLOOP1010)
+
+// PUSH CONST 6
 @6
 D=A
 @SP
@@ -485,7 +408,7 @@ M=D
 @SP
 M=M+1
 
-// push constant 8
+// PUSH CONST 8
 @8
 D=A
 @SP
@@ -494,66 +417,91 @@ M=D
 @SP
 M=M+1
 
-// call Class1.set 2
-@RETURN28
+// call functionName nArgs
+// push retAddrLabel12 // Generates and pushes this label // subtracts the # of args
+@retAddrLabel12
 D=A
 @SP
 A=M
-M=D // push return-address
+M=D
 @SP
 M=M+1
+
+// push LCL // Saves the caller’s LCL
 @LCL
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push LCL
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push ARG // Saves the caller’s ARG
 @ARG
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push ARG
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THIS // Saves the caller’s THIS
 @THIS
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THIS
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THAT // Saves the caller’s THAT
 @THAT
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THAT
-@SP
-M=M+1
-D=M
-@2
-D=D-A
+A=A-1 // move down sp to save the val
+M=D
+
+// ARG = SP – 5 – nArgs // Repositions ARG
 @5
-D=D-A
+D=A
+@2
+D=D+A
+@SP
+D=M-D
 @ARG
-M=D // ARG = SP-n-5
+M=D
+
+// LCL = SP // Repositions LCL
 @SP
 D=M
 @LCL
-M=D // LCL = SP
-@Class1.set
-0;JMP // goto Class1.set
-(RETURN28)
+M=D
 
-// pop temp 0
+// goto functionName // Transfers control to the callee
+@Class1.set
+0;JMP
+
+// (retAddrLabel12) // Injects this label into the code // still confused but oh well
+(retAddrLabel12)
+
+// POP 5 0
+@0
+D=A
+@5
+D=D+A
+@14
+M=D // adress of value to be popped
 @SP
 M=M-1
 A=M
 D=M
-@5
+@14
+A=M
 M=D
 
-// push constant 23
+// PUSH CONST 23
 @23
 D=A
 @SP
@@ -562,7 +510,7 @@ M=D
 @SP
 M=M+1
 
-// push constant 15
+// PUSH CONST 15
 @15
 D=A
 @SP
@@ -571,170 +519,533 @@ M=D
 @SP
 M=M+1
 
-// call Class2.set 2
-@RETURN32
+// call functionName nArgs
+// push retAddrLabel14 // Generates and pushes this label // subtracts the # of args
+@retAddrLabel14
 D=A
 @SP
 A=M
-M=D // push return-address
+M=D
 @SP
 M=M+1
+
+// push LCL // Saves the caller’s LCL
 @LCL
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push LCL
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push ARG // Saves the caller’s ARG
 @ARG
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push ARG
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THIS // Saves the caller’s THIS
 @THIS
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THIS
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THAT // Saves the caller’s THAT
 @THAT
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THAT
-@SP
-M=M+1
-D=M
-@2
-D=D-A
+A=A-1 // move down sp to save the val
+M=D
+
+// ARG = SP – 5 – nArgs // Repositions ARG
 @5
-D=D-A
+D=A
+@2
+D=D+A
+@SP
+D=M-D
 @ARG
-M=D // ARG = SP-n-5
+M=D
+
+// LCL = SP // Repositions LCL
 @SP
 D=M
 @LCL
-M=D // LCL = SP
-@Class2.set
-0;JMP // goto Class2.set
-(RETURN32)
+M=D
 
-// pop temp 0
+// goto functionName // Transfers control to the callee
+@Class2.set
+0;JMP
+
+// (retAddrLabel14) // Injects this label into the code // still confused but oh well
+(retAddrLabel14)
+
+// POP 5 0
+@0
+D=A
+@5
+D=D+A
+@14
+M=D // adress of value to be popped
 @SP
 M=M-1
 A=M
 D=M
-@5
+@14
+A=M
 M=D
 
-// call Class1.get 0
-@RETURN34
+// call functionName nArgs
+// push retAddrLabel16 // Generates and pushes this label // subtracts the # of args
+@retAddrLabel16
 D=A
 @SP
 A=M
-M=D // push return-address
+M=D
 @SP
 M=M+1
+
+// push LCL // Saves the caller’s LCL
 @LCL
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push LCL
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push ARG // Saves the caller’s ARG
 @ARG
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push ARG
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THIS // Saves the caller’s THIS
 @THIS
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THIS
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THAT // Saves the caller’s THAT
 @THAT
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THAT
-@SP
-M=M+1
-D=M
-@0
-D=D-A
+A=A-1 // move down sp to save the val
+M=D
+
+// ARG = SP – 5 – nArgs // Repositions ARG
 @5
-D=D-A
+D=A
+@0
+D=D+A
+@SP
+D=M-D
 @ARG
-M=D // ARG = SP-n-5
+M=D
+
+// LCL = SP // Repositions LCL
 @SP
 D=M
 @LCL
-M=D // LCL = SP
+M=D
+
+// goto functionName // Transfers control to the callee
 @Class1.get
-0;JMP // goto Class1.get
-(RETURN34)
+0;JMP
 
-// call Class2.get 0
-@RETURN35
+// (retAddrLabel16) // Injects this label into the code // still confused but oh well
+(retAddrLabel16)
+
+// call functionName nArgs
+// push retAddrLabel18 // Generates and pushes this label // subtracts the # of args
+@retAddrLabel18
 D=A
 @SP
 A=M
-M=D // push return-address
+M=D
 @SP
 M=M+1
+
+// push LCL // Saves the caller’s LCL
 @LCL
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push LCL
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push ARG // Saves the caller’s ARG
 @ARG
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push ARG
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THIS // Saves the caller’s THIS
 @THIS
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THIS
-@SP
-M=M+1
+A=A-1 // move down sp to save the val
+M=D
+
+// push THAT // Saves the caller’s THAT
 @THAT
 D=M
 @SP
+M=M+1 // move sp up
 A=M
-M=D // push THAT
-@SP
-M=M+1
-D=M
-@0
-D=D-A
+A=A-1 // move down sp to save the val
+M=D
+
+// ARG = SP – 5 – nArgs // Repositions ARG
 @5
-D=D-A
+D=A
+@0
+D=D+A
+@SP
+D=M-D
 @ARG
-M=D // ARG = SP-n-5
+M=D
+
+// LCL = SP // Repositions LCL
 @SP
 D=M
 @LCL
-M=D // LCL = SP
+M=D
+
+// goto functionName // Transfers control to the callee
 @Class2.get
-0;JMP // goto Class2.get
-(RETURN35)
+0;JMP
 
-// label WHILE
-(Sys.init$WHILE)
+// (retAddrLabel18) // Injects this label into the code // still confused but oh well
+(retAddrLabel18)
 
-// goto WHILE
-@Sys.init$WHILE
+// create Label
+(END)
+
+// GOTO 
+@END
+0;JMP
+
+// funct0on
+(Class2.set)
+
+@0 // saves 0nput loop #
+D=A
+
+(ZEROLOOP22) // create zeros 0f needed
+@ENDZEROLOOP2222
+D;JEQ
+D=D-1
+
+// push const 0
+@SP
+A=M
+M=0
+@SP
+M=M+1
+
+@ZEROLOOP22
+0;JMP
+
+(ENDZEROLOOP2222)
+
+// PUSH ARG 0
+@0
+D=A
+@ARG
+D=D+M
+A=D // move to the addr
+D=M // save that value to D
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+// POP static2Var0 0
+@0
+D=A
+@static2Var0
+D=D+A
+@14
+M=D // adress of value to be popped
+@SP
+M=M-1
+A=M
+D=M
+@14
+A=M
+M=D
+
+// PUSH ARG 1
+@1
+D=A
+@ARG
+D=D+M
+A=D // move to the addr
+D=M // save that value to D
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+// POP static2Var1 1
+@1
+D=A
+@static2Var1
+D=D+A
+@14
+M=D // adress of value to be popped
+@SP
+M=M-1
+A=M
+D=M
+@14
+A=M
+M=D
+
+// PUSH CONST 0
+@0
+D=A
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+// endFrame and retAddr are temporary variables.
+// The pointer notation *addr denotes RAM[addr].
+// endFrame = LCL // gets the address at the frame’s end
+@LCL
+D=M
+@endFrame
+M=D
+
+// retAddr = *(endFrame – 5) // gets the return address
+@5
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@retAddr
+M=D
+
+// *ARG = pop() // puts the return value for the caller
+@SP
+M=M-1
+A=M
+D=M
+@ARG
+A=M
+M=D
+
+// SP = ARG + 1 // repositions SP
+@ARG
+D=M+1
+@SP
+M=D
+
+// THAT = *(endFrame – 1) // restores THAT
+@1
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@THAT
+M=D
+
+// THIS = *(endFrame – 2) // restores THIS
+@2
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@THIS
+M=D
+
+// ARG = *(endFrame – 3) // restores ARG
+@3
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@ARG
+M=D
+
+// LCL = *(endFrame – 4) // restores LCL
+@4
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@LCL
+M=D
+
+// GOTO return adress
+@retAddr
+A=M
+0;JMP
+
+// funct0on
+(Class2.get)
+
+@0 // saves 0nput loop #
+D=A
+
+(ZEROLOOP25) // create zeros 0f needed
+@ENDZEROLOOP2525
+D;JEQ
+D=D-1
+
+// push const 0
+@SP
+A=M
+M=0
+@SP
+M=M+1
+
+@ZEROLOOP25
+0;JMP
+
+(ENDZEROLOOP2525)
+
+// PUSH static2Var0 0
+@0
+D=A
+@static2Var0
+D=D+A
+A=D // move to the addr
+D=M // save that value to D
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+// PUSH static2Var1 1
+@1
+D=A
+@static2Var1
+D=D+A
+A=D // move to the addr
+D=M // save that value to D
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+// SUB
+@SP
+M=M-1
+A=M
+D=M
+A=A-1
+D=M-D
+M=D
+
+// endFrame and retAddr are temporary variables.
+// The pointer notation *addr denotes RAM[addr].
+// endFrame = LCL // gets the address at the frame’s end
+@LCL
+D=M
+@endFrame
+M=D
+
+// retAddr = *(endFrame – 5) // gets the return address
+@5
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@retAddr
+M=D
+
+// *ARG = pop() // puts the return value for the caller
+@SP
+M=M-1
+A=M
+D=M
+@ARG
+A=M
+M=D
+
+// SP = ARG + 1 // repositions SP
+@ARG
+D=M+1
+@SP
+M=D
+
+// THAT = *(endFrame – 1) // restores THAT
+@1
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@THAT
+M=D
+
+// THIS = *(endFrame – 2) // restores THIS
+@2
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@THIS
+M=D
+
+// ARG = *(endFrame – 3) // restores ARG
+@3
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@ARG
+M=D
+
+// LCL = *(endFrame – 4) // restores LCL
+@4
+D=A
+@endFrame
+D=M-D
+A=D
+D=M
+@LCL
+M=D
+
+// GOTO return adress
+@retAddr
+A=M
 0;JMP

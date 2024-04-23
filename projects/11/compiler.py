@@ -24,82 +24,98 @@ def readXML(file):
     
     return tokens
 
-variables = []
+GlobalVariables = []
+LocalVariables = []
 
 symbols = ['var', 'field', 'static', 'arg']
 globalSymbols = ['static', 'field']
 
 # ---- 2: loop through the string to create symbol table ---- #
-def SymbolTable(tokens):
+def GlobalSymbolTable(tokens):
+    index = 0
     
+    # NOTE: I think this is only for method and constructor calls (need to check)
     # adds the local varaibles this and that first
-    define('this', 'point', 'argument')
-    define('other', 'point', 'argument')
+    #define('this', 'point', 'argument')
+    #define('other', 'point', 'argument')
     
-    for i in range(len(tokens)):
-        token = tokens[i]
-        
-        if token in symbols:
+    while tokens[index] != '<subroutineDec>' and tokens[index] != '</class>':
+        if tokens[index] in symbols:
+            kind = tokens[index]
+
             # moves two tokens right to find the type
-            type = tokens[i + 3]
+            type = tokens[index + 3]
             
             # moves four tokens right to find the names
-            names = findNames(tokens, i + 6)
-            
-            # we replace field with this
-            if token == 'field':
-                token = 'this'
-            if token == 'var':
-                token = 'local'
+            index, names = findNames(tokens, index + 6)
             
             for name in names:
-                define(name, type, token)
+                define(name, type, kind)  
             
+        index += 1
     return
     
-# adds a new variable to the current table
+# TODO: FIX THIS: adds a new variable to the current table
 def define(name, type, kind):
+    global GlobalVariables
+    global LocalVariables
+    
+    if kind == 'field':
+        kind = 'this'
+    
     # gets the number of a specific kind in order to add to the table
     index = varCount(kind)
     
     row = [name, type, kind, index]
-    variables.append(row)
+    if kind == 'this' or kind == 'static':
+        GlobalVariables.append(row)
+    else:
+        LocalVariables.append(row)
+        
     return 
     
 # returns the number of a given kind
 def varCount(kind):
+    global GlobalVariables
+    global LocalVariables
+    
     count = 0
-    for row in variables:
+    for row in GlobalVariables:
+        if row[2] == kind:
+            count += 1
+    for row in LocalVariables:
         if row[2] == kind:
             count += 1
     return count
   
 # returns the type of a varible 
 def varType(var):
-    global variables
+    global GlobalVariables
+    global LocalVariables
     
-    for row in variables:
+    for row in GlobalVariables:
         if row[0] == var:
             return row[0], row[1], row[2], row[3]
-    #print(var)
+        
+    for row in LocalVariables:
+        if row[0] == var:
+            return row[0], row[1], row[2], row[3]
     
     return 'UNKNOWN', '', "ERROR", 'VAR NOT FOUND'
-
     
 # loops to find the number of variables to add and their respective names
 def findNames(tokens, index):
-    count = 0
     names = []
     
     while True:
-        currentToken = tokens[index + count]
+        currentToken = tokens[index]
         
         if currentToken == ';':
-            return names
+            return index, names
         if currentToken != ',':
             names.append(currentToken)
         
-        count += 3       
+        index += 3       
        
 VMcode = ''
 
@@ -111,7 +127,7 @@ def writeCommand(type, segment, index):
     VMcode = VMcode + line
     return
 
-symbolToCommand = [['+', 'add'], ['-', 'sub'], ['<', 'lt'], ['>', 'gt'], ['&', 'and'], ['|', 'and'], ['~', 'not'], ['-', 'neg']]
+symbolToCommand = [['+', 'add'], ['-', 'sub'], ['<', 'lt'], ['>', 'gt'], ['&', 'and'], ['|', 'and'], ['=', 'eq']]
 
 # TODO: add & and |
 def writeArithmetic(type):
@@ -159,6 +175,14 @@ def writeReturn():
     VMcode = VMcode + 'return\r\n'
     return
 
+def PushKeywordConst(token):
+    if token == 'this':
+        writeCommand('push', 'pointer', '0')
+    else:
+        writeCommand('push', 'constant', '0')
+        if token == 'true':
+            writeArithmetic('not')
+
 # class name at the top of file
 currentClass = ''
 
@@ -184,37 +208,52 @@ def compileClass(tokens, index):
             index += 1
         
         index = compileSubroutine(tokens, index)
+        
+        while tokens[index] != '</class>':
+            if tokens[index] == '<subroutineDec>':
+                index = compileSubroutine(tokens, index)
+            index += 1
     
-    return
-    
-# TODO: maybe not
-def compileClassVarDec():
     return
     
 # TODO
 def compileSubroutine(tokens, index):
+    global LocalVariables
+    
     # move to the keyword the keyword method, construct, function
     index += 2
     
     # TODO: fix this
     if tokens[index] == 'method':
+        # clear the local vars for the next table!
+        LocalVariables = []
+        define('this', 'point', 'argument')
+        compileParamList(tokens, index)
+        compileSubroutineVariables(tokens, index)
+        
         # name of function
         index += 6
         name = currentClass + '.' + tokens[index]
         
         index = moveIndexTo(tokens, index, '<parameterList>')
         
-        # find the number of vars via param number
-        nVars = howManyParams(tokens, index)
+        # WRONG: find the number of vars via param number
+        # nVars = howManyParams(tokens, index)
+        
+        # find the number of vars
+        nVars = varCount('local')
         
         writeFunction(name, nVars)
         
         # grab the this segment
-        writeCommand('push', 'argument', 'zero')
+        writeCommand('push', 'argument', '0')
         writeCommand('pop', 'pointer', '0')
         
-        
     if tokens[index] == 'function':
+        LocalVariables = []
+        compileParamList(tokens, index)
+        compileSubroutineVariables(tokens, index)
+        
         # name of function
         index += 6
         name = currentClass + '.' + tokens[index]
@@ -226,57 +265,105 @@ def compileSubroutine(tokens, index):
         
         writeFunction(name, nVars)
         
-        compileParameterList()
-        
     if tokens[index] == 'constructor':
+        LocalVariables = []
+        compileParamList(tokens, index)
+        compileSubroutineVariables(tokens, index)
+        
         # name of function
         index += 6
         name = currentClass + '.' + tokens[index]
         
-        # IM NOT SURE IF WE CARE ABOUT THE PARAMS RIGHT NOW
+        # find the number of vars
+        nVars = varCount('local')
         
-        nVars = varCount('field')
+        # find the number of vars (why?)
+        nArgs = varCount('this')
+        
+        writeFunction(name, nVars)
         
         # allocate nVars amount of memory 
-        writeCommand('push', 'constant', str(nVars))
+        writeCommand('push', 'constant', str(nArgs))
         writeCall('Memory.alloc', '1')
         
         # move the memory pointer into the this memory segment
         writeCommand('pop', 'pointer', '0')
         
      
+    print(LocalVariables)
+     
     index = moveIndexTo(tokens, index, '<subroutineBody>')
     
     index = compileSubroutineBody(tokens, index)
     
+    index = moveIndexTo(tokens, index, '</subroutineDec>')
+    
     return index
 
-# debugging function
+# adds params to local symbol table
+def compileParamList(tokens, index):
+    global LocalVariables
+    
+    index = moveIndexTo(tokens, index, '<parameterList>')
+    
+    while tokens[index] != '</parameterList>':
+        if tokens[index] == '<keyword>':
+            define(tokens[index + 4], tokens[index + 1], 'argument')
+            index += 5
+        index += 1
+    return index
+    
+def compileSubroutineVariables(tokens, index):
+    while tokens[index] != '</subroutineBody>':
+        if tokens[index] == 'var':
+            kind = 'local'
+
+            # moves two tokens right to find the type
+            type = tokens[index + 3]
+            
+            # moves four tokens right to find the names
+            index, names = findNames(tokens, index + 6)
+            
+            for name in names:
+                define(name, type, kind) 
+        
+        index += 1
+    return
+    
+
+# helper: debugging function
 def printer(tokens, index, num):
     for i in range(num):
         print(tokens[index + i])
 
-# returns the number of parameters provided to the function
+# helper: returns the number of parameters provided to the function
 def howManyParams(tokens, index):
     final_index = moveIndexTo(tokens, index, '</parameterList>')
     
     return ((final_index - index) / 3)
 
-# TODO: pushes them to the stack?
-def compileParameterList():
-    return
+# helper: finds if there is an else in the if statement
+def containsElse(tokens, index):
+    ifcounter = 0
+    index += 1
+    while tokens[index] != '</ifStatement>' or ifcounter != 0:
+        if tokens[index] == '<ifStatement>':
+            ifcounter += 1
+        elif tokens[index] == '</ifStatement>':
+            ifcounter -= 1
+        elif tokens[index] == 'else' and ifcounter == 0:
+            return True
+        index += 1
+        token = tokens[index]
+    return False
 
-# TODO: incomplete
+# TODO: complete?
 def compileSubroutineBody(tokens, index):
     # NOTE: could cause an if this isnt always generated
     index = moveIndexTo(tokens, index, '<statements>')
     
     index = compileStatements(tokens, index)
-        
-    return index
-
-# DONE: litteraly does nothing
-def compileVarDec(tokens, index):
+    
     return index
 
 # TODO:
@@ -307,13 +394,13 @@ def compileLet(tokens, index):
     
     # loop up in table (given 'x' aka the name variables[])
     type, name, segment, num = varType(tokens[index])
-    #printer(tokens, index, 5)
-    #print('Name: ' + name)
     
     # special logic for arrays!
-    if name == 'Array' and tokens[index] == '[':
-        index = moveIndexTo(tokens, index, '<term>')
-        index = compileExpression(tokens, index, [], [])[0]
+    if name == 'Array' and tokens[index + 3] == '[':
+        index = moveIndexTo(tokens, index, '<expression>')
+        
+        writeCommand('push', segment, str(num))
+        index = compileExpression(tokens, index)
         
         # add arr pointer and expression
         writeArithmetic('add')
@@ -321,7 +408,7 @@ def compileLet(tokens, index):
         # compile seconds expression
         index = moveIndexTo(tokens, index, '<expression>')
         
-        index = compileExpression(tokens, index, [], [])[0]
+        index = compileExpression(tokens, index)
         
         # store the returned val into temp memory
         writeCommand('pop', 'temp', '0')
@@ -340,7 +427,7 @@ def compileLet(tokens, index):
     index = moveIndexTo(tokens, index, '<expression>')
     
     # compile expression
-    index = compileExpression(tokens, index, [], [])[0]
+    index = compileExpression(tokens, index)
     
     # pop the val from expression into the var
     writeCommand('pop', segment, str(num))
@@ -349,67 +436,77 @@ def compileLet(tokens, index):
     
     return index
 
-Label_counter = 0
+ifCounter = 0
+
 
 def compileIf(tokens, index):
-    global Label_counter
+    global ifCounter
+    
+    ifelse = containsElse(tokens, index)
     
     index = moveIndexTo(tokens, index, '<expression>')
     
-    index = compileExpression(tokens, index, [], [])[0]
+    index = compileExpression(tokens, index)
     
-    # invert the expression
-    writeArithmetic('~')
+    trueLabel = 'IF_TRUE' + str(ifCounter)
+    trueEnd = 'IF_END' + str(ifCounter)
+    falseLabel = 'IF_FALSE' + str(ifCounter)
+    ifCounter += 1
     
-    # 1. write a unique label to go to if true
-    writeStatement('if-goto', 'L' + str(Label_counter))
-    Label_counter += 1
+    writeStatement('if-goto', trueLabel)
+    writeStatement('goto', falseLabel)
+    writeStatement('label', trueLabel)
     
-    index = moveIndexTo(tokens, index, '<letStatement>')
-    
+    index = moveIndexTo(tokens, index, '<statements>')
     index = compileStatements(tokens, index)
     
-    # 2. go to end of statement (aka skip the next part)
-    writeStatement('goto', 'L' + str(Label_counter))
-    Label_counter += 1
+    # doesn't matter if we keep this but its a small
+    # optimization
+    if ifelse:
+        writeStatement('goto', trueEnd)
+        
+    writeStatement('label', falseLabel)
     
-    # jumped from point 1. 
-    writeStatement('label', 'L' + str(Label_counter - 2))
+    if ifelse:
+        index = moveIndexTo(tokens, index, '<statements>')
+        index = compileStatements(tokens, index)
     
-    index = compileStatements(tokens, index)
+        writeStatement('label', trueEnd)
     
-    # jumped from point 2. (end of ifStatement)
-    writeStatement('label', 'L' + str(Label_counter - 2))
-    
+    index = moveIndexTo(tokens, index, '</ifStatement>')
+        
     return index
 
+Label_counter = 0
 
 def compileWhile(tokens, index):
     global Label_counter
+    whileLabel = 'WHILE_EXP' + str(Label_counter)
+    whileEndLabel = 'WHILE_END' + str(Label_counter)
+    Label_counter += 1
     
     # write the loop label
-    writeStatement('label', 'L' + str(Label_counter))
-    Label_counter += 1
+    writeStatement('label', whileLabel)
     
     index = moveIndexTo(tokens, index, '<expression>')
     
-    index = compileExpression(tokens, index, [], [])[0]
+    index = compileExpression(tokens, index)
     
     # invert the expression
     writeArithmetic('not')
     
     # 1. goto the escape loop label if expression is true
-    writeStatement('if-goto', 'L' + str(Label_counter))
+    writeStatement('if-goto', whileEndLabel)
     
     index = moveIndexTo(tokens, index, '<statements>')
     
     index = compileStatements(tokens, index)
     
     # 2. LOOP !!!
-    writeStatement('goto', 'L' + str(Label_counter - 1))
+    writeStatement('goto', whileLabel)
     
     # write escape loop label
-    writeStatement('label', 'L' + str(Label_counter))
+    writeStatement('label', whileEndLabel)
     
     index = moveIndexTo(tokens, index, '</whileStatement>')
     
@@ -417,6 +514,9 @@ def compileWhile(tokens, index):
 
 
 def compileDo(tokens, index):
+    # move index to subroutine Name (thank me latter)
+    index += 5
+    
     index = compileSubroutineCall(tokens, index)
     
     # pop temp 0
@@ -430,7 +530,7 @@ def compileReturn(tokens, index):
     index += 4
     
     if tokens[index] == '<expression>':
-        index = compileExpression(tokens, index, [], [])[0]
+        index = compileExpression(tokens, index)
         
         # probably move to symbol
         index += 1
@@ -444,164 +544,147 @@ def compileReturn(tokens, index):
     
     return index
 
+# I may have to change the compileSubroutines to include
+# pushing the object to the stack for draw()
 def compileSubroutineCall(tokens, index):
-    # change the use cases for function calls
-    if tokens[index + 11] == '<expressionList>':
-        offset = 0
-    else:
-        offset = 5
+    # push the object (at least find the info about it)
+    type, name2, segment, num = varType(tokens[index])
     
-    expression_index = moveIndexTo(tokens, index, '<expressionList>')
+    index, name, pushObject = compileSubroutineName(tokens, index)
+
+    Nargs = 0
+    if pushObject:
+        writeCommand('push', 'pointer', '0')
+        Nargs += 1
+    else:
+        # is were calling a game.run instead of on the orig class
+        # for example not SquareGame.run
+        if name2 != '':
+            writeCommand('push', segment, str(num))
+            Nargs += 1
     
     # first we eval some expression
-    Nargs = compileExpressionList(tokens, expression_index)
-    
-    # push the object
-    type, name, segment, num = varType(tokens[index + offset])
-    if type != 'UNKNOWN':
-        writeCommand('push', segment, str(num))
-        extraParam = 1
-    else:
-        extraParam = 0
-        # changed from var[0] to var[1] ... I know
-        name = tokens[index + offset]
+    Nargs = Nargs + compileExpressionList(tokens, index)
     
     # call function
-    writeCall(name + tokens[index + offset + 3] + tokens[index + offset + 6], str(Nargs + extraParam))
+    writeCall(name, str(Nargs))
     
     index = moveIndexTo(tokens, index, '</expressionList>')
     
     return index
 
-# TODO: add array compatability
-def compileExpression(tokens, index, nums, ops):   
+# helper subroutine function that seperates a draw() from a object.draw() call
+def compileSubroutineName(tokens, index):
+    # just tells us if its a object call
+    pushObject = False
+    
+    # draw()
+    if tokens[index + 3] == '(':
+        name = currentClass + '.' + tokens[index]
+        pushObject = True
+    # something.something()
+    else:
+        name = varType(tokens[index])[1]
+        
+        if name == '':
+            name = tokens[index]
+            
+        name = name + '.' + tokens[index + 6]
+    
+    index = moveIndexTo(tokens, index, '<expressionList>')
+     
+    return index, name, pushObject
+
+
+def compileExpression(tokens, index):
     # move to first part of the expression
     index += 1
+    termCounter = 0
+    opsCounter = 0
     
-    # create stacks for nums and ops
     while tokens[index] != '</expression>':
         if tokens[index] == '<term>':
-            index, nums = compileTerm(tokens, index, nums, ops)
-            
-            nums, ops = doStackOps(nums, ops)
+            index = compileTerm(tokens, index)
+            termCounter += 1
+                
+        if tokens[index] == '<symbol>' and tokens[index + 1] != ')' and tokens[index + 1] != '(':
+            # save the + - * or whatever
+            LastOp = tokens[index + 1]
+            opsCounter += 1
+        
+        if termCounter > 1 and opsCounter > 0:
+            writeArithmetic(LastOp)
+            termCounter -= 1
+            opsCounter -= 1
 
-        if tokens[index] == '<symbol>':
-            index += 1
-            
-            if tokens[index] == ')':
-                removeParentheses(nums)
-                removeParentheses(ops)
-            else:
-                if tokens[index] == '(':
-                    nums.append(tokens[index])
-                    
-                # add the + - * or whatever
-                ops.append(tokens[index])
-            
-            nums, ops = doStackOps(nums, ops)
-        
-        if tokens[index] == '<expression>':
-            index, nums, ops = compileExpression(tokens, index, nums, ops)
-        
         index += 1
     
-    return index, nums, ops
+    return index
 
-# moves backwards to remove '('
-def removeParentheses(str):
-    for i in range(len(str)):
-        #print(str[len(str) - i - 1])
-        if str[len(str) - i - 1] == '(':
-            str.pop(len(str) - i - 1)
-
-    return str
-
-# expression helper function
-def doStackOps(nums, ops):
-    # NOTE: this may break everything
-    # do single unaryOp operations
-    if len(nums) > 0 and len(ops) > 0:
-        if nums[-1] != '(':
-            if ops[-1] == '~' or ops[-1] == '-':
-                writeArithmetic(ops.pop(-1))
-    
-    while True:
-        if len(nums) > 1 and len(ops) > 0:
-            if ops[-1] != '(' and nums[-1] != '(' and nums[-2] != '(':
-                #print(nums)
-                #print(ops)
-                # pop the command to write it
-                writeArithmetic(ops.pop(-1))
-                
-                # remove a val from the nums stack
-                nums.pop(-1)
-            else:
-                break
-        else:
-            break
-    
-    return nums, ops
-
-            
 # TODO: fix / add priority to lists
-def compileTerm(tokens, index, nums, ops):
-    
+def compileTerm(tokens, index):
     # move to term type
     index += 1
     
     if tokens[index] == '<integerConstant>':
-        index += 1
-        nums.append(tokens[index])
-        writeCommand('push', 'constant', tokens[index])
-        index += 1
+        writeCommand('push', 'constant', tokens[index + 1])
+        index += 2
         
     if tokens[index] == '<stringConstant>':
         compileString(tokens[index + 1])
-        index += 1
+        index += 2
 
-    # NOTE: not sure if it can handle class function calls
-    if tokens[index] == '<identifier>':  
+    if tokens[index] == '<keyword>':
+        PushKeywordConst(tokens[index + 1])
+        index += 2
+        
+    if tokens[index] == '<symbol>':
+        opToken = tokens[index + 1]
+        
+        # if term is UrnaryOp + Term --> compileTerm then push op
+        if opToken == '-' or opToken == '~':
+            index = moveIndexTo(tokens, index, '<term>')
+            index = compileTerm(tokens, index)
+            
+            if opToken == '-':
+                writeArithmetic('neg')
+            elif opToken == '~':
+                writeArithmetic('not')
+                
+        # if term is (expr) --> call compileExpression
+        elif opToken == '(':
+            index = moveIndexTo(tokens, index, '<expression>')
+            index = compileExpression(tokens, index)
+
+    # NOTE: There is likely a issue here
+    if tokens[index] == '<identifier>':
         index += 1
-        nums.append(tokens[index])
         
         type, name, segment, num = varType(tokens[index])
         
         # if type == subroutineCall
-        if type == 'UNKNOWN' and name != 'Array':
-            print("SUBROUTINE: " + tokens[index])
+        # NOTE: idk whats going on here tbh
+        if tokens[index + 3] == '(' or tokens[index + 3] == '.':
             index = compileSubroutineCall(tokens, index)
         else:
             # push the symbol
             writeCommand('push', segment, str(num))
-            print('IDENT: ' + tokens[index])
-            #printer(tokens, index, 3)
             
             # logic for arrays: '(' added for logic
             if tokens[index + 3] == '[':
-                print("array: " + tokens[index])
-                nums.append('(')
-                ops.append('(')
-                
-                index = compileExpression(tokens, index + 5, nums, ops)[0]
-                
-                removeParentheses(nums)
-                removeParentheses(ops)
+                index = compileExpression(tokens, index + 5)
                 
                 # add to get the arr + expression address
                 writeArithmetic('add')
-                print('ADDING: ' + tokens[index])
-                
                 #pop pointer 1 // THAT = address of b[j]
                 writeCommand('pop', 'pointer', '1')
                 #push that 0 // stack top = b[j]
                 writeCommand('push', 'that', '0')
                 
-                # remove the val because we just added it
-                nums.pop(-1)
-                
             index = moveIndexTo(tokens, index, '</term>')
 
-    return index, nums
+    return index
+
 
 # only used for compiling strings inside of terms
 def compileString(token):
@@ -617,9 +700,6 @@ def compileString(token):
 
 # TODO: calls compileExpression for each comma seperated thingy
 def compileExpressionList(tokens, index):
-    nums = []
-    ops = []
-    
     # number of aguments going into a function || tracked by commas
     Nargs = 0
     
@@ -627,7 +707,7 @@ def compileExpressionList(tokens, index):
     while tokens[index] != '</expressionList>':
         # compile first expression
         if tokens[index] == '<expression>':
-            index, nums, ops = compileExpression(tokens, index, nums, ops)
+            index = compileExpression(tokens, index)
             Nargs += 1
             
         index += 1
@@ -638,8 +718,8 @@ def compileExpressionList(tokens, index):
 def main(file, save_file_name):
     tokens = readXML(file)
     
-    SymbolTable(tokens)
-    print(variables)
+    GlobalSymbolTable(tokens)
+    print(GlobalVariables)
     
     compileClass(tokens, 0)
     
@@ -651,9 +731,15 @@ def main(file, save_file_name):
     
     return
 
-xml_file_path = "Average/noIndents.xml"   
-save_file_name = 'Average/Main'
+# normal
+#xml_file_path = "Square/noIndents.xml"   
+#save_file_name = 'Square/Square'
+
+# for debugging
+xml_file_path = "/Users/lindageer/Projects/nand2tetris/Nand2tetris/projects/11/Pong/noIndents.xml"   
+save_file_name = '/Users/lindageer/Projects/nand2tetris/Nand2tetris/projects/11/Pong/Ball'
+
 main(xml_file_path, save_file_name)
 
-#NOTE: we need to update terms to handle: strings, *expressions, *unaryOp (symbol) term
-#NOTE: object function calls must push the object beforehand
+#NOTE: we need to throw away the subroutine level 
+# symbol table each time we start compiling a new subroutine

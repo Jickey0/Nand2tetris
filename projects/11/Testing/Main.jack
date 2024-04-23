@@ -3,11 +3,45 @@
  */
 
 class Main {
-   function void main() {
-      var int length;
-      let length = Keyboard.readInt("How many numbers? "); // constructs the array
-      do Output.printInt(length);
-      return;
-   }
+   static PongGame instance; // A Pong game     
+    field Bat bat;            // bat
+    field Ball ball;          // ball
+    field int wall;           // current wall that the ball is bouncing off of
+    field boolean exit;       // true when the game is over
+    field int score;          // current score
+    field int lastWall; 
+    field int batWidth;
 
+
+   method void moveBall() {
+        var int bouncingDirection, batLeft, batRight, ballLeft, ballRight;
+        let wall = ball.move();
+
+        if ((wall > 0) & (~(wall = lastWall))) {
+            let lastWall = wall;
+            let bouncingDirection = 0;
+            let batLeft = bat.getLeft();
+            let batRight = bat.getRight();
+            let ballLeft = ball.getLeft();
+            let ballRight = ball.getRight();
+  
+            if (wall = 4) {
+                let exit = (batLeft > ballRight) | (batRight < ballLeft);
+                if (~exit) {
+                    if (ballRight < (batLeft + 10)) { let bouncingDirection = -1; }
+                    else {
+                        if (ballLeft > (batRight - 10)) { let bouncingDirection = 1; }
+                    }
+
+                    let batWidth = batWidth - 2;
+                    do bat.setWidth(batWidth);      
+                    let score = score + 1;
+                    do Output.moveCursor(22,7);
+                    do Output.printInt(score);
+                }
+            }
+            do ball.bounce(bouncingDirection);
+        }
+        return;
+    }
 }

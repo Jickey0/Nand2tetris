@@ -150,7 +150,7 @@ def compileClass(myTokens, result):
     return result
 
 def compileClassVarDec(myTokens, result):
-    if myTokens[0] == 'static' or myTokens[0] == 'field':
+    while myTokens[0] == 'static' or myTokens[0] == 'field':
         result.append('<classVarDec>')
         
         result = writeToken(myTokens.pop(0), 'keyword', result)
@@ -164,7 +164,10 @@ def compileClassVarDec(myTokens, result):
         
         # while we don't encounter a ; must be a identifier
         while myTokens[0] != ';':
-            result = writeToken(myTokens.pop(0), 'identifier', result)
+            if myTokens[0] == ',':
+                result = writeToken(myTokens.pop(0), 'symbol', result)
+            else:
+                result = writeToken(myTokens.pop(0), 'identifier', result)
             
         # end ;
         result = writeToken(myTokens.pop(0), 'symbol', result)
@@ -223,10 +226,6 @@ def statements(myTokens, result):
     
     while myTokens[0] == 'let' or myTokens[0] == 'if' or myTokens[0] == 'while' or myTokens[0] == 'do' or myTokens[0] == 'return':
         token = myTokens[0]
-        #print('hello')
-        #print(myTokens[0])
-        #print(result)
-        #result = writeToken(myTokens.pop(0), 'keyword', result)
         
         if token == 'let':
             result = letStatement(myTokens, result)
@@ -278,7 +277,7 @@ def letStatement(myTokens, result):
 
 op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
 
-# TODO: add recursive part (DONE)
+# very cool
 def expression(myTokens, result):
     result.append('<expression>')
     
@@ -332,7 +331,7 @@ def term(myTokens, result):
                 # ]
                 result = writeToken(myTokens.pop(0), 'symbol', result)
     
-    # TODO: fix this (MAYBE)
+    # TODO: fix this (NAH WE GOOD)
     if type == 'symbol':
         # '(' expression ')'
         if myTokens[0] == '(':
@@ -385,14 +384,19 @@ def subroutineCall(myTokens, result):
     
     return result
     
-# TODO: optional expressions 
+# TODO: fix the <symbol> being wrapped in <term>
 def expressionList(myTokens, result):
     result.append('<expressionList>')
     
     if myTokens[0] != ')':
         result = expression(myTokens, result)
     
+        # optional loop until we find the ')'
         while myTokens[0] == ',':
+            # ,
+            result = writeToken(myTokens.pop(0), 'symbol', result)
+            
+            # expression aka term
             result = expression(myTokens, result)
     
     result.append('</expressionList>')
@@ -536,14 +540,14 @@ def parameterList(myTokens, result):
     while myTokens[0] != ')':
         # comma seperate after first loop
         if comma == True:
-            result.append(myTokens.pop(0), 'symbol')
+            result = writeToken(myTokens.pop(0), 'symbol', result)
         
         # could be keyword or identifer
         type = tokenType(myTokens[0])
-        result.append(myTokens.pop(0), type)
+        result = writeToken(myTokens.pop(0), type, result)
         
         # varName
-        result.append(myTokens.pop(0), 'identifier')
+        result = writeToken(myTokens.pop(0), 'identifier', result)
             
         comma = True
         
@@ -616,7 +620,10 @@ def main1(file_path, save_path):
     f.close()
 
 
-def main2(file_path, save_path):
+def main2(folder, file):
+    file_path = folder + '/' + file
+    save_path = folder + '/'
+    
     myCode = removeComments(file_path)
 
     tokened_code = adv2(myCode)
@@ -630,12 +637,12 @@ def main2(file_path, save_path):
     #print(result)
     result = prettyPrint(result)
     
-    f = open(save_path + 'output2.xml', "w")
+    f = open(file_path + '.xml', "w")
     
     for line in result:
         f.write(line + '\r\n')
     
     f.close()
 
-main1("ArrayTest/Main.jack", "ArrayTest/")
-main2("ArrayTest/Main.jack", "ArrayTest/")
+#main1("ExpressionLessSquare", "square.jack")
+main2("ExpressionLessSquare", "Square.jack")

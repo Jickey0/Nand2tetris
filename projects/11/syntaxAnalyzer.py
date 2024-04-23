@@ -604,8 +604,6 @@ def main1(file_path, save_path):
     f = open(save_path + 'output1.xml', "w")
     f.write('<tokens>\r\n')
     
-    
-    
     # print and write easy version of code (COMPLETE)
     for token in tokened_code:
         type = tokenType(token)
@@ -654,4 +652,4 @@ def main2(folder, file):
     f.close()
 
 #main1("ExpressionLessSquare", "square.jack")
-main2("Average", "Main.jack")
+main2("Pong", "Ball.jack")
