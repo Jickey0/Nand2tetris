@@ -33,6 +33,7 @@ class Keyboard {
      * F1 - F12 = 141 - 152
      */
     function char keyPressed() {
+        return Memory.peek(24576);
     }
 
     /**								
@@ -41,6 +42,16 @@ class Keyboard {
      * of the pressed key.
      */
     function char readChar() {
+        var int c;
+        // display cursor ??
+
+        while (keyPressed() = 0) {}
+        let c = keyPressed();
+        while (~(keyPressed() = 0)) {}
+        
+        // display char
+        do printChar(c);
+        return c;
     }
 
     /**								
@@ -49,7 +60,8 @@ class Keyboard {
      * and returns its value. Also handles user backspaces.
      */
     function String readLine(String message) {
-    }   
+        
+    }
 
     /**								
      * Displays the message on the screen, reads from the keyboard the entered

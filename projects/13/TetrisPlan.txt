@@ -1,0 +1,14 @@
+heres a written plan for my Tetris remake
+
+Steps:
+1. create an API for filling a 10x20 tetris board
+2. create either a 2d array or a single 200 mem array for the theoretical tetris board
+4. create a array of all tetris pieces
+5. randomly pick from a tetris board (also create a random function)
+6. Make a function to check if a peice can fall every dt
+7. Decide if how many failed fall function calls that must occur for a piece to be placed
+8. Create function to check if a row is cleared
+9. If a row is cleared award points to the users score
+10. create score keeping UI
+11. create function to which says if a block can't be spawned the game is over
+12. create a piece rotate function

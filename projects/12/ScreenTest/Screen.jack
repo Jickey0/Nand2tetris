@@ -1,0 +1,208 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Screen.jack
+
+/**
+ * A library of functions for displaying graphics on the screen.
+ * The Hack physical screen consists of 512 rows (indexed 0..511, top to bottom)
+ * of 256 pixels each (indexed 0..255, left to right). The top left pixel on 
+ * the screen is indexed (0,0).
+ */
+class Screen {
+    static Array PowerOfTwo; // used for OR bit changes
+    static Boolean color;
+
+    /** Initializes the Screen. */
+    function void init() {
+        let PowerOfTwo = Array.new(16);
+        let PowerOfTwo[0] = 1;
+        let PowerOfTwo[1] = 2;
+        let PowerOfTwo[2] = 4;
+        let PowerOfTwo[3] = 8;
+        let PowerOfTwo[4] = 16;
+        let PowerOfTwo[5] = 32;
+        let PowerOfTwo[6] = 64;
+        let PowerOfTwo[7] = 128;
+        let PowerOfTwo[8] = 256;
+        let PowerOfTwo[9] = 512;
+        let PowerOfTwo[10] = 1024;
+        let PowerOfTwo[11] = 2048;
+        let PowerOfTwo[12] = 4096;
+        let PowerOfTwo[13] = 8192;
+        let PowerOfTwo[14] = 16384;
+        let PowerOfTwo[15] = 16384 + 16384;
+
+        //do Screen.setColor(false);
+        //do Screen.clearScreen();
+
+        do Screen.setColor(true);
+
+        return;
+    }
+
+    /** Erases the entire screen. */
+    function void clearScreen() {
+        do Screen.drawRectangle(0, 0, 511, 255);
+        return;
+    }
+
+    /** Sets the current color, to be used for all subsequent drawXXX commands.
+     *  Black is represented by true, white by false. */
+    function void setColor(boolean b) {
+        let color = b;
+        return;
+    }
+
+    /** Draws the (x,y) pixel, using the current color. */
+    function void drawPixel(int x, int y) {
+        var int address;
+        var int value;
+        var int changeBit;
+
+        let address = (32 * y) + (x / 16) + 16384;
+        let value = Memory.peek(address);
+
+        // set the (x % 16)th bit of value to the current color
+        // HOW TF do I Change The BITS? 16 BIT OR... of course
+
+        // return bit to change (0 - 15)
+        // then changes 1 in binary to match returned value
+        let changeBit = x - ((x / 16) * 16);
+        let changeBit = PowerOfTwo[changeBit];
+
+        if (color) {
+            let value = value | changeBit;
+        } else {
+            let value = value & ~changeBit;
+        }
+
+        do Memory.poke(address, value);
+        return;
+    }
+
+    /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
+    function void drawLine(int x1, int y1, int x2, int y2) {
+        var int dx;
+        var int dy;
+        var int diff;
+        var int changeInX;
+        var int changeInY;
+
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        if (dy = 0) {
+            do Screen.drawHorizontal(y1, x1, x2);
+            return;
+        }
+        if (dx = 0) {
+            do Screen.drawVerticle(x1, y1, y2);
+            return;
+        }
+
+        if (dx < 0) {
+            let dx = -dx;
+            let changeInX = -1;
+        } else {
+            let changeInX = 1;
+        }
+
+        if (dy < 0) {
+            let dy = -dy;
+            let changeInY = -1;
+        } else {
+            let changeInY = 1;
+        }
+
+        let diff = 0;
+
+        while (~((x1 = x2) | (y1 = y2))) {
+            do Screen.drawPixel(x1, y1);
+            
+            // if (diff < 0) { a++; diff += dy; }
+            if (diff < 0) {
+                let x1 = x1 + changeInX;
+                let diff = diff + dy;
+            } else {
+            // else { b++; diff -= dx; }
+                let y1 = y1 + changeInY;
+                let diff = diff - dx;
+            }
+        }
+        return;
+    }
+
+    function void drawHorizontal(int y1, int x1, int x2) {
+        var int changeInX;
+        var int dx;
+
+        let dx = x2 - x1; // x2 = dx
+        if (dx < 0) {
+            let changeInX = -1;
+        } else {
+            let changeInX = 1;
+        }
+
+        while (~(x1 = x2)) {
+            let x1 = x1 + changeInX;
+            do Screen.drawPixel(x1, y1);
+        }
+        return;
+    }
+
+    function void drawVerticle(int x1, int y1, int y2) {
+        var int changeInY;
+        var int dy;
+
+        let dy = y2 - y1;
+        if (dy < 0) {
+            let changeInY = -1;
+        } else {
+            let changeInY = 1;
+        }
+
+        while (~(y1 = y2)) {
+            let y1 = y1 + changeInY;
+            do Screen.drawPixel(x1, y1);
+        }
+        return;
+    }
+
+    /** Draws a filled rectangle whose top left corner is (x1, y1)
+     * and bottom right corner is (x2,y2), using the current color. */
+    function void drawRectangle(int x1, int y1, int x2, int y2) {
+        var int dy;
+        var int dx;
+        var int dxSaved;
+
+        let dy = y2 - y1;
+        let dx = x2 - x1;
+
+        let dxSaved = dx;
+
+        while (dy > 0) {
+            while (dx > 0) {
+                do Screen.drawPixel(dx + x1, dy + y1);
+                let dx = dx - 1;
+            }
+            let dx = dxSaved;
+            let dy = dy - 1;
+        }
+        return;
+    }
+
+    /** Draws a filled circle of radius r<=181 around (x,y), using the current color. */
+    function void drawCircle(int x, int y, int r) {
+        var int dy;
+        var int sqrtCalc;
+        let dy = -r;
+
+        while (dy < r) {
+            let dy = dy + 1;
+            let sqrtCalc = Math.sqrt(((r * r) - (dy * dy)));
+            do Screen.drawLine(x - sqrtCalc, y + dy, x + sqrtCalc, y + dy);
+        }
+        return;
+    }
+}
